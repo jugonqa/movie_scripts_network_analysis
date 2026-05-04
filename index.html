@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swamp-Sugar Medieval: The Unified Grid</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@700;900&family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --shrek-green: #b2d300;
+            --candy-pink: #ff1493;
+            --royal-gold: #ffd700;
+            --sugar-blue: #00e5ff;
+            --swamp-deep: #121607;
+            --parchment: #fdf5e6;
+            --ink: #2b1d0e;
+        }
+
+        body {
+            margin: 0;
+            background: var(--swamp-deep);
+            font-family: 'Fredoka One', cursive;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar - Candy Scroll */
+        aside {
+            width: 320px;
+            background: var(--parchment) url('https://www.transparenttextures.com/patterns/old-map.png');
+            border-right: 8px solid var(--shrek-green);
+            padding: 25px;
+            box-shadow: 10px 0 50px rgba(0,0,0,0.9);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            border-image: repeating-linear-gradient(45deg, var(--candy-pink), var(--candy-pink) 10px, var(--shrek-green) 10px, var(--shrek-green) 20px) 10;
+        }
+
+        h1 {
+            font-family: 'Grenze Gotisch', serif;
+            font-size: 2.5rem;
+            color: var(--candy-pink);
+            text-align: center;
+            margin: 0;
+            text-shadow: 2px 2px 0 var(--ink);
+            line-height: 1;
+        }
+
+        .legend {
+            margin-top: 20px;
+            padding: 10px;
+            border: 3px double var(--ink);
+            background: rgba(255,255,255,0.2);
+            font-size: 0.85rem;
+        }
+
+        .btn-candy {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 12px;
+            border: 3px solid var(--ink);
+            background: var(--royal-gold);
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--ink);
+            transition: 0.2s;
+        }
+
+        .btn-candy.active { background: var(--sugar-blue); color: white; }
+
+        /* Graph Area */
+        main {
+            flex-grow: 1;
+            position: relative;
+            background: 
+                radial-gradient(circle at center, #2d3b1e 0%, #121607 100%),
+                url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        }
+
+        .node circle { 
+            stroke: #fff; 
+            stroke-width: 3px;
+        }
+
+        .node text { 
+            font-size: 12px; 
+            fill: #fff; 
+            paint-order: stroke;
+            stroke: #000;
+            stroke-width: 3px;
+            pointer-events: none;
+        }
+
+        .link { 
+            stroke-opacity: 0.4; 
+            transition: stroke-opacity 0.3s, stroke-width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<aside>
+    <h1>The Sugar Web</h1>
+    <p style="text-align:center; font-size: 0.9rem;">The Unified Kingdom of Far Far Away</p>
+    
+    <button class="btn-candy active" id="btn-deg">Influence Grid</button>
+    
+    <div class="legend">
+        <div style="color:var(--shrek-green)">● Swamp Rebels</div>
+        <div style="color:var(--royal-gold)">● Caramel Royalty</div>
+        <div style="color:var(--candy-pink)">● Licorice Villains</div>
+        <div style="color:var(--sugar-blue)">● Soda Scholars</div>
+    </div>
+
+    <div style="margin-top: auto; font-size: 0.75rem; color: var(--ink); text-align: center;">
+        <b>Instruction:</b> All 50 characters are hard-linked. Hover to see the "sugar-threads".
+    </div>
+</aside>
+
+<main id="viz"></main>
+
+<script>
+    // 50 Characters - All strictly connected
+    const nodes = [
+        { id: "SHREK", group: 0, b: 0.9 }, { id: "FIONA", group: 1, b: 0.8 },
+        { id: "DONKEY", group: 0, b: 0.7 }, { id: "PUSS", group: 0, b: 0.7 },
+        { id: "ARTIE", group: 3, b: 0.9 }, { id: "CHARMING", group: 2, b: 0.8 },
+        { id: "HAROLD", group: 1, b: 0.5 }, { id: "LILLIAN", group: 1, b: 0.4 },
+        { id: "MERLIN", group: 3, b: 0.6 }, { id: "LANCELOT", group: 3, b: 0.3 },
+        { id: "GUINEVERE", group: 3, b: 0.3 }, { id: "SNOW_WHITE", group: 1, b: 0.4 },
+        { id: "CINDERELLA", group: 1, b: 0.4 }, { id: "SLEEPY", group: 1, b: 0.3 },
+        { id: "RAPUNZEL", group: 2, b: 0.5 }, { id: "DORIS", group: 1, b: 0.4 },
+        { id: "MABEL", group: 2, b: 0.4 }, { id: "HOOK", group: 2, b: 0.4 },
+        { id: "CYCLOPS", group: 2, b: 0.3 }, { id: "RUMPEL", group: 2, b: 0.6 },
+        { id: "FAIRY_G", group: 2, b: 0.7 }, { id: "EVIL_Q", group: 2, b: 0.3 },
+        { id: "HEADLESS", group: 2, b: 0.3 }, { id: "PIPER", group: 2, b: 0.4 },
+        { id: "GINGY", group: 0, b: 0.4 }, { id: "PINOCCHIO", group: 0, b: 0.4 },
+        { id: "WOLF", group: 0, b: 0.3 }, { id: "DRAGON", group: 0, b: 0.5 },
+        { id: "PIG1", group: 0, b: 0.2 }, { id: "PIG2", group: 0, b: 0.2 },
+        { id: "PIG3", group: 0, b: 0.2 }, { id: "DRONKEY", group: 0, b: 0.2 },
+        { id: "BROGAN", group: 0, b: 0.3 }, { id: "COOKIE", group: 0, b: 0.2 },
+        { id: "GARY", group: 3, b: 0.2 }, { id: "XAVIER", group: 3, b: 0.2 },
+        { id: "TILDA", group: 3, b: 0.2 }, { id: "ALICE", group: 3, b: 0.2 },
+        { id: "HEATHER", group: 3, b: 0.2 }, { id: "GEPPETTO", group: 2, b: 0.3 },
+        { id: "MIRROR", group: 1, b: 0.3 }, { id: "BUTTER_P", group: 1, b: 0.2 },
+        { id: "FARKLE", group: 0, b: 0.1 }, { id: "FERGUS", group: 0, b: 0.1 },
+        { id: "FELICIA", group: 0, b: 0.1 }, { id: "RAVEN", group: 2, b: 0.2 },
+        { id: "BABA", group: 2, b: 0.3 }, { id: "HUMPTY", group: 3, b: 0.4 },
+        { id: "JACK", group: 4, b: 0.2 }, { id: "JILL", group: 4, b: 0.2 }
+    ];
+
+    // Explicit density: NO character left behind
+    const links = [
+        // The Big Tension
+        { source: "FIONA", target: "CHARMING", w: 10 },
+        { source: "SHREK", target: "FIONA", w: 12 },
+        { source: "SHREK", target: "ARTIE", w: 10 },
+        // Factions
+        { source: "ARTIE", target: "MERLIN", w: 8 },
+        { source: "MERLIN", target: "LANCELOT", w: 5 },
+        { source: "LANCELOT", target: "GUINEVERE", w: 5 },
+        { source: "GUINEVERE", target: "ARTIE", w: 5 },
+        { source: "GARY", target: "MERLIN", w: 4 },
+        { source: "XAVIER", target: "GARY", w: 3 },
+        { source: "TILDA", target: "XAVIER", w: 3 },
+        { source: "ALICE", target: "TILDA", w: 3 },
+        { source: "HEATHER", target: "ALICE", w: 3 },
+        { source: "HEATHER", target: "ARTIE", w: 4 },
+        // Princess Alliance
+        { source: "FIONA", target: "SNOW_WHITE", w: 6 },
+        { source: "SNOW_WHITE", target: "CINDERELLA", w: 6 },
+        { source: "CINDERELLA", target: "SLEEPY", w: 6 },
+        { source: "SLEEPY", target: "DORIS", w: 6 },
+        { source: "DORIS", target: "MIRROR", w: 5 },
+        { source: "MIRROR", target: "HAROLD", w: 5 },
+        { source: "HAROLD", target: "LILLIAN", w: 8 },
+        { source: "LILLIAN", target: "FIONA", w: 8 },
+        // The Villain Pack
+        { source: "CHARMING", target: "RAPUNZEL", w: 9 },
+        { source: "RAPUNZEL", target: "MABEL", w: 7 },
+        { source: "MABEL", target: "HOOK", w: 7 },
+        { source: "HOOK", target: "CYCLOPS", w: 6 },
+        { source: "CYCLOPS", target: "HEADLESS", w: 6 },
+        { source: "HEADLESS", target: "EVIL_Q", w: 6 },
+        { source: "EVIL_Q", target: "RAVEN", w: 5 },
+        { source: "RAVEN", target: "BABA", w: 5 },
+        { source: "BABA", target: "RUMPEL", w: 7 },
+        { source: "RUMPEL", target: "PIPER", w: 7 },
+        { source: "PIPER", target: "CHARMING", w: 6 },
+        { source: "FAIRY_G", target: "CHARMING", w: 12 },
+        // Swamp Network
+        { source: "SHREK", target: "DONKEY", w: 10 },
+        { source: "DONKEY", target: "PUSS", w: 9 },
+        { source: "PUSS", target: "SHREK", w: 9 },
+        { source: "DONKEY", target: "DRAGON", w: 8 },
+        { source: "DRAGON", target: "DRONKEY", w: 6 },
+        { source: "DRONKEY", target: "FARKLE", w: 4 },
+        { source: "FARKLE", target: "FERGUS", w: 4 },
+        { source: "FERGUS", target: "FELICIA", w: 4 },
+        { source: "FELICIA", target: "FIONA", w: 6 },
+        { source: "SHREK", target: "BROGAN", w: 7 },
+        { source: "BROGAN", target: "COOKIE", w: 6 },
+        { source: "COOKIE", target: "GINGY", w: 5 },
+        { source: "GINGY", target: "PINOCCHIO", w: 7 },
+        { source: "PINOCCHIO", target: "GEPPETTO", w: 6 },
+        { source: "GEPPETTO", target: "PIG1", w: 4 },
+        { source: "PIG1", target: "PIG2", w: 4 },
+        { source: "PIG2", target: "PIG3", w: 4 },
+        { source: "PIG3", target: "WOLF", w: 5 },
+        { source: "WOLF", target: "SHREK", w: 6 },
+        // Bridge connections (Jack & Jill and others)
+        { source: "HUMPTY", target: "PUSS", w: 7 },
+        { source: "HUMPTY", target: "JACK", w: 5 },
+        { source: "JACK", target: "JILL", w: 8 },
+        { source: "JILL", target: "BUTTER_P", w: 4 },
+        { source: "BUTTER_P", target: "HAROLD", w: 4 }
+    ];
+
+    const width = window.innerWidth - 320;
+    const height = window.innerHeight;
+    const colorScale = ["#b2d300", "#ffd700", "#ff1493", "#00e5ff", "#ffffff"];
+
+    const svg = d3.select("#viz").append("svg")
+        .attr("width", "100%")
+        .attr("height", "100%");
+
+    const container = svg.append("g");
+    svg.call(d3.zoom().on("zoom", (e) => container.attr("transform", e.transform)));
+
+    const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+        .force("charge", d3.forceManyBody().strength(-1200))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide().radius(65));
+
+    const link = container.append("g")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line")
+        .attr("class", "link")
+        .attr("stroke", "#ffd700")
+        .attr("stroke-width", d => d.w / 2);
+
+    const node = container.append("g")
+        .selectAll(".node")
+        .data(nodes)
+        .enter().append("g")
+        .attr("class", "node")
+        .on("mouseover", (e, d) => {
+            link.attr("stroke-opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.05)
+                .attr("stroke", l => (l.source.id === d.id || l.target.id === d.id) ? "#00e5ff" : "#ffd700")
+                .attr("stroke-width", l => (l.source.id === d.id || l.target.id === d.id) ? 5 : l.w / 2);
+        })
+        .on("mouseout", () => {
+            link.attr("stroke-opacity", 0.4).attr("stroke", "#ffd700").attr("stroke-width", d => d.w / 2);
+        })
+        .call(d3.drag()
+            .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+    node.append("circle")
+        .attr("r", d => 15 + (d.b * 40))
+        .attr("fill", d => colorScale[d.group]);
+
+    node.append("text")
+        .attr("dy", d => 25 + (d.b * 40))
+        .attr("text-anchor", "middle")
+        .text(d => d.id);
+
+    simulation.on("tick", () => {
+        link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+</script>
+</body>
+</html>
